@@ -24,8 +24,11 @@ import org.mule.runtime.config.api.dsl.model.properties.ConfigurationProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerAsyncClient;
@@ -43,22 +46,27 @@ public class CustomConfigurationPropertiesProviderFactory implements Configurati
 	public static final String EXTENSION_NAMESPACE = "aws-sm-properties-provider";
 	private static final Logger LOGGER = LoggerFactory.getLogger(CustomConfigurationPropertiesProviderFactory.class);
 	private final static String CUSTOM_PROPERTIES_PREFIX = "aws-sm-getSecretValue::";
+	private final static String TEST_PLACEHOLDER = "null";
 
 	@Override
 	public ComponentIdentifier getSupportedComponentIdentifier() {
 		return AWSSM_PROPERTIES_PROVIDER;
 	}
 
-	private AwsCredentialsProvider getSDKCredProvider(String credType) {
-		return ProfileCredentialsProvider.create();
+	private AwsCredentialsProvider getSDKCredProvider(String credType, String awsKey, String awsSecret) {
+		//for compiling this library project a credentials file is needed in order to provide the keys ( typically located at ~/.aws/credentials) https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/credentials.html 
+		if(awsKey.equals(TEST_PLACEHOLDER) || awsSecret.equals(TEST_PLACEHOLDER) )
+			return ProfileCredentialsProvider.create();
+		else //when the keys are provided via properties in the component (awsKey awsSecret properties) those will be used
+			return StaticCredentialsProvider.create(AwsBasicCredentials.create(awsKey, awsSecret));
 	}
 
-	public String getAWSSecretValue(String region, String secretName, String key, String authType) {
+	public String getAWSSecretValue(String region, String secretName, String key, String authType, String awsKey, String awsSecret) {
 
 		Region REG = Region.of(region);
 
 		SecretsManagerAsyncClient secretsClient = SecretsManagerAsyncClient.builder().region(REG)
-				.httpClient(NettyNioAsyncHttpClient.builder().build()).credentialsProvider(getSDKCredProvider(authType))
+				.httpClient(NettyNioAsyncHttpClient.builder().build()).credentialsProvider(getSDKCredProvider(authType, awsKey, awsSecret))
 				.build();
 
 		try {
@@ -97,6 +105,9 @@ public class CustomConfigurationPropertiesProviderFactory implements Configurati
 		LOGGER.info("**********Creating AWS Secret Manager Properties Provider*********");
 		String awsRegion = parameters.getStringParameter("region");
 		String authType = parameters.getStringParameter("authType");
+		String awsKey = parameters.getStringParameter("awsKey");
+		String awsSecret = parameters.getStringParameter("awsSecret");
+		
 		LOGGER.debug("Region" + awsRegion);
 		LOGGER.debug("Auth Type" + authType);
 
@@ -108,7 +119,7 @@ public class CustomConfigurationPropertiesProviderFactory implements Configurati
 					String effectiveKey = configurationAttributeKey.substring(CUSTOM_PROPERTIES_PREFIX.length());
 					String[] secretParts = effectiveKey.split(":");
 					
-					String propertyValue = getAWSSecretValue(awsRegion, secretParts[0], secretParts[1], authType);
+					String propertyValue = getAWSSecretValue(awsRegion, secretParts[0], secretParts[1], authType, awsKey, awsSecret);
 					if (effectiveKey != null) {
 						return Optional.of(new ConfigurationProperty() {
 

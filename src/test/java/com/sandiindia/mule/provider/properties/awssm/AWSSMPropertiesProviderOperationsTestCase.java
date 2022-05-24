@@ -30,7 +30,7 @@ public class AWSSMPropertiesProviderOperationsTestCase extends MuleArtifactFunct
   
   @Test
   public void customPropertyProviderAWSSecretsManagerTest() {
-    assertThat(testObject.getValueFromProperty(), is("keystorepass"));
+    assertThat(testObject.getValueFromProperty(), is("mongo"));
   }
 
 

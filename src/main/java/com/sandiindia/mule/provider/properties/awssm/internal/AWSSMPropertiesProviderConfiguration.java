@@ -20,7 +20,29 @@ public class AWSSMPropertiesProviderConfiguration {
   @Parameter
   private String authType;
   
-  public String getConfigId(){
+  @Parameter
+  private String awsKey;
+  
+  @Parameter
+  private String awsSecret;
+
+  public String getAwsKey() {
+	return awsKey;
+}
+
+public void setAwsKey(String awsKey) {
+	this.awsKey = awsKey;
+}
+
+public String getAwsSecret() {
+	return awsSecret;
+}
+
+public void setAwsSecret(String awsSecret) {
+	this.awsSecret = awsSecret;
+}
+
+public String getConfigId(){
     return configId;
   }
   
